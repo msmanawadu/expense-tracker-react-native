@@ -13,6 +13,10 @@ function ManageExpense({ route, navigation }) {
 	const editedExpenseId = route.params?.expenseId;
 	// Convert editedExpenseId value into a boolean value. Valid expenseID->editing->true
 	const isEditing = !!editedExpenseId;
+	// Find the expense object to edit.
+	const selectedExpense = expensesCtx.expenses.find(
+		(expense) => expense.id === editedExpenseId
+	);
 
 	// Avoid screen title flickering effect
 	useLayoutEffect(() => {
@@ -32,19 +36,11 @@ function ManageExpense({ route, navigation }) {
 		navigation.goBack();
 	}
 
-	function confirmHandler() {
+	function confirmHandler(expenseData) {
 		if (isEditing) {
-			expensesCtx.updateExpense(editedExpenseId, {
-				description: 'Test!!!',
-				amount: 30,
-				date: new Date('2024-12-29'),
-			});
+			expensesCtx.updateExpense(editedExpenseId, expenseData);
 		} else {
-			expensesCtx.addExpense({
-				description: 'Test',
-				amount: 20,
-				date: new Date('2024-12-30'),
-			});
+			expensesCtx.addExpense(expenseData);
 		}
 		// Close modal
 		navigation.goBack();
@@ -52,15 +48,12 @@ function ManageExpense({ route, navigation }) {
 
 	return (
 		<View style={styles.container}>
-			<ExpenseForm />
-			<View style={styles.buttons}>
-				<Button style={styles.button} mode='flat' onPress={cancelHandler}>
-					Cancel
-				</Button>
-				<Button style={styles.button} onPress={confirmHandler}>
-					{isEditing ? 'Update' : 'Add'}
-				</Button>
-			</View>
+			<ExpenseForm
+				submitButtonLabel={isEditing ? 'Update' : 'Add'}
+				onSubmit={confirmHandler}
+				onCancel={cancelHandler}
+				defaultValues={selectedExpense}
+			/>
 			{isEditing && (
 				<View style={styles.deleteContainer}>
 					<IconButton
@@ -87,15 +80,6 @@ const styles = StyleSheet.create({
 		borderTopWidth: 2,
 		borderTopColor: GlobalStyles.colors.primary200,
 		alignItems: 'center',
-	},
-	buttons: {
-		flexDirection: 'row',
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	button: {
-		minWidth: 120,
-		marginHorizontal: 8,
 	},
 });
 
