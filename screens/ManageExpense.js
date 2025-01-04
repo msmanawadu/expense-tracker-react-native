@@ -4,7 +4,7 @@ import IconButton from '../components/UI/IconButton';
 import { GlobalStyles } from '../constants/styles';
 import { ExpensesContext } from '../store/expenses-context';
 import ExpenseForm from '../components/ManageExpense/ExpenseForm';
-import { storeExpense } from '../util/http';
+import { deleteExpense, storeExpense, updateExpense } from '../util/http';
 
 function ManageExpense({ route, navigation }) {
 	const expensesCtx = useContext(ExpensesContext);
@@ -25,8 +25,9 @@ function ManageExpense({ route, navigation }) {
 		});
 	}, [navigation, isEditing]);
 
-	function deleteExpenseHandler() {
-		expensesCtx.deleteExpense(editedExpenseId);
+	async function deleteExpenseHandler() {
+		expensesCtx.deleteExpense(editedExpenseId); // Delete locally first
+		await deleteExpense(editedExpenseId); // Then delete remotely
 		// Close modal
 		navigation.goBack();
 	}
@@ -36,12 +37,14 @@ function ManageExpense({ route, navigation }) {
 		navigation.goBack();
 	}
 
-	function confirmHandler(expenseData) {
+	// Update an existing expense object
+	async function confirmHandler(expenseData) {
 		if (isEditing) {
-			expensesCtx.updateExpense(editedExpenseId, expenseData);
+			expensesCtx.updateExpense(editedExpenseId, expenseData); // Update locally first
+			await updateExpense(editedExpenseId, expenseData); // Then update remotely
 		} else {
-			storeExpense(expenseData); // POST -> CREATE
-			expensesCtx.addExpense(expenseData);
+			const id = await storeExpense(expenseData); // POST -> CREATE
+			expensesCtx.addExpense({ ...expenseData, id: id });
 		}
 		// Close modal
 		navigation.goBack();
