@@ -1,12 +1,17 @@
-import { useContext, useLayoutEffect } from 'react';
+import { useContext, useLayoutEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import IconButton from '../components/UI/IconButton';
 import { GlobalStyles } from '../constants/styles';
 import { ExpensesContext } from '../store/expenses-context';
 import ExpenseForm from '../components/ManageExpense/ExpenseForm';
 import { deleteExpense, storeExpense, updateExpense } from '../util/http';
+import LoadingOverlay from '../components/UI/LoadingOverlay';
+import ErrorOverlay from '../components/UI/ErrorOverlay';
 
 function ManageExpense({ route, navigation }) {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [error, setError] = useState();
+
 	const expensesCtx = useContext(ExpensesContext);
 
 	// If we have a value for expenseID, we are editing it. Else, we are creating a new expense object.
@@ -26,28 +31,47 @@ function ManageExpense({ route, navigation }) {
 	}, [navigation, isEditing]);
 
 	async function deleteExpenseHandler() {
-		expensesCtx.deleteExpense(editedExpenseId); // Delete locally first
-		await deleteExpense(editedExpenseId); // Then delete remotely
-		// Close modal
-		navigation.goBack();
+		setIsSubmitting(true);
+		try {
+			await deleteExpense(editedExpenseId); // Delete remotely
+			expensesCtx.deleteExpense(editedExpenseId); // Delete locally
+			navigation.goBack(); // Close modal
+		} catch (error) {
+			setError('Could not delete expense - please try again later!');
+			setIsSubmitting(false);
+		}
 	}
 
 	function cancelHandler() {
-		// Close modal
-		navigation.goBack();
+		navigation.goBack(); // Close modal
 	}
 
-	// Update an existing expense object
+	// Update / Save an expense object
 	async function confirmHandler(expenseData) {
-		if (isEditing) {
-			expensesCtx.updateExpense(editedExpenseId, expenseData); // Update locally first
-			await updateExpense(editedExpenseId, expenseData); // Then update remotely
-		} else {
-			const id = await storeExpense(expenseData); // POST -> CREATE
-			expensesCtx.addExpense({ ...expenseData, id: id });
+		setIsSubmitting(true);
+		try {
+			if (isEditing) {
+				expensesCtx.updateExpense(editedExpenseId, expenseData); // Update locally first
+				await updateExpense(editedExpenseId, expenseData); // Then update remotely
+			} else {
+				const id = await storeExpense(expenseData); // Save remotely first
+				expensesCtx.addExpense({ ...expenseData, id: id }); // Then save locally
+			}
+			navigation.goBack(); // Close modal
+		} catch (error) {
+			setError('Could not save data - please try again later!');
+			setIsSubmitting(false);
 		}
-		// Close modal
-		navigation.goBack();
+	}
+
+	// Error message if update/create/delete fails
+	if (error && !isSubmitting) {
+		return <ErrorOverlay message={error} />;
+	}
+
+	// Loading spinner while submitting data
+	if (isSubmitting) {
+		return <LoadingOverlay />;
 	}
 
 	return (
